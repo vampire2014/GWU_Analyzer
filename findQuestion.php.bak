@@ -1,0 +1,22 @@
+<?
+#### Roshan's Ajax dropdown code with php
+#### Copyright reserved to Roshan Bhattarai - nepaliboy007@yahoo.com
+#### if you have any problem contact me at http://roshanbh.com.np
+#### fell free to visit my blog http://php-ajax-guru.blogspot.com
+?>
+
+<? $school=$_REQUEST['school'];
+
+include("connection.php");
+$query="select * from class where school_id = $school order by id";
+$result=mysql_query($query);
+
+?>
+<select name="class">
+<option>Select class</option>
+
+<? while($row = mysql_fetch_array($result))
+					{
+						echo "	<option value=\"$row[id]\"> $row[name] - $row[category]</option>"	;			
+					}?>
+</select>

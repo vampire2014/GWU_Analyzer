@@ -1,0 +1,182 @@
+<?
+$questionnaire=$_GET['questionnaire'];
+$question=$_GET['question'];
+
+
+include "connection.php";
+include('graph/phpgraphlib.php');
+include('graph/phpgraphlib_pie.php');
+
+$dir = plugin_dir_path( __FILE__ );
+
+$msg = '';
+// For The Questionnaire information
+$result = mysql_query("SELECT question_id, questionnaire_id, question_text, ans_type, response_content, COUNT( * ) AS total
+FROM wp_question_dim Q, wp_question_response QR
+WHERE questionnaire_id = $questionnaire
+AND question_id = $question
+AND QR.questionnaire_dim_questionnaire_id = Q.questionnaire_id
+AND QR.question_dim_question_id = Q.question_id
+GROUP BY response_content");
+if(mysql_num_rows($result) > 0){
+	$row = mysql_fetch_row($result);
+	if (mysql_data_seek($result, 0))
+	{}
+
+	$text = '<ul>';
+
+	// if the answer type is text
+	if(trim($row[3]) == "Text Box"){
+		while($rows = mysql_fetch_assoc($result)) {
+			$question_id = $rows['question_id'];
+			$question_txt = $rows['question_text'];
+			$text = $text.'<li>'.$rows['response_content'].'</li>';
+		}
+		$text = $text.'</ul>';
+		$msg =$msg.'<table class="table">
+		<tbody>
+		<tr class="tr">
+		<td colspan="4" class="td"><b>'.$question_id.'. '.$question_txt.'</b><br></td>
+		</tr>
+		<tr class="tr">
+		<td colspan="4" class="td">'.$text.'</td>
+		</tr>
+		</tbody>
+		</table>';
+	} else if(trim($row[3]) == "NPS"){
+		$nps = mysql_query("SELECT COUNT(*) FROM
+		(
+		SELECT  convert(AnsValue, UNSIGNED INTEGER) as AnsValue
+		FROM gwu_answerChoice a, gwu_question g
+		WHERE a.QuestionnaireID=g.QuestionnaireID
+		and a.QuestSequence=g.QuestSequence
+		and AnsType='NPS'
+		and convert(AnsValue, UNSIGNED INTEGER)  between 1 and 6
+		) As detractors");
+		$row = mysql_fetch_row($nps);
+		$detractors = $row['detractors'];
+
+		$nps1 = mysql_query("SELECT COUNT(*) FROM
+		(
+		SELECT convert(AnsValue, UNSIGNED INTEGER) as AnsValue
+		FROM gwu_answerChoice a, gwu_question g
+		WHERE a.QuestionnaireID=g.QuestionnaireID
+		and a.QuestSequence=g.QuestSequence
+		and AnsType='NPS'
+		and convert(AnsValue, UNSIGNED INTEGER)  between 7 and 8
+		) As passives");
+
+		$row = mysql_fetch_row($nps1);
+		$passives = $row['passives'];
+
+		$nps2 = mysql_query("SELECT COUNT(*) FROM
+
+		(
+		SELECT  convert(AnsValue, UNSIGNED INTEGER) as AnsValue
+		FROM gwu_answerChoice a, gwu_question g
+		WHERE a.QuestionnaireID=g.QuestionnaireID
+		and a.QuestSequence=g.QuestSequence
+		and AnsType='NPS'
+		and convert(AnsValue, UNSIGNED INTEGER)  > 8
+		) As promoters");
+
+		$row = mysql_fetch_row($nps2);
+		$promoters = $row['promoters'];
+
+		$total = $detractors + $passives + $promoters;
+		$promoters_per = ($promoters / $total)* 100;
+		$detractors_per = ($detractors / $total)* 100;
+
+		$npsFinal = $promoters_per - $detractors_per;
+
+		$graph = new PHPGraphLibPie(450,280,$dir.'chart'.$question.$questionnaire.'.png');
+
+		$data=array( "Promoters"=>$promoters, "Detractors"=>$detractors,"passives"=>$passives);
+		$graph->addData($data);
+		$graph->setTitle($question_id.'. '.$question_txt);
+		$graph->setLabelTextColor("blue");
+		$graph->createGraph();
+		$msg =$msg.'<table class="table">
+		<tbody>
+		<tr class="tr">
+		<td colspan="4" class="td"><b>'.$question_id.'. '.$question_txt.'</b><br></td>
+		</tr>
+		<tr class="tr">
+		<td colspan="4" class="td"><b>NPS</b>'.$npsFinal.'<br></td>
+		</tr>
+		<tr class="tr">
+		<td colspan="4" class="td">
+		<img align="center" src="/wp-content/plugins/QuestionPeachAnalyzer/chart'.$question.$questionnaire.'.png" ><br>
+
+		</td>
+		</tr>
+		</tbody>
+		</table>';
+
+
+	} else{
+
+		$dataArray = array();
+		while($rows = mysql_fetch_assoc($result)) {
+			$question_id = $rows['question_id'];
+			$question_txt = $rows['question_text'];
+			$key = $rows['response_content'];
+			$value = $rows['total'];
+			$dataArray[$key]=$value;
+		}
+
+
+		//graph
+
+
+		$graph = new PHPGraphLib(800,350,$dir.'chart'.$question.$questionnaire.'.png');
+		$graph->addData($dataArray);
+		$graph->setBarColor('green');
+		$graph->setTitle($question_id.'. '.$question_txt);
+		$graph->setupYAxis(12, 'green');
+		$graph->setupXAxis(8);
+		$graph->setGrid(true);
+		$graph->setTitleLocation('left');
+		$graph->setDataValues(true);
+		$graph->setDataValueColor('red');
+		$graph->setTextColor('black');
+		$graph->setTitleColor('blue');
+		$graph->setXValuesHorizontal(true);
+		$graph->createGraph();
+
+
+		$msg =$msg.'<table class="table">
+		<tbody>
+		<tr class="tr">
+		<td colspan="4" class="td"><b>'.$question_id.'. '.$question_txt.'</b><br></td>
+		</tr>
+		<tr class="tr">
+		<td colspan="4" class="td">
+		<img align="center" src="/wp-content/plugins/QuestionPeachAnalyzer/chart'.$question.$questionnaire.'.png" ><br>
+
+		</td>
+		</tr>
+		</tbody>
+		</table>';
+
+
+	}
+
+
+
+
+
+} else {
+
+	$msg = $msg.'<table class="table">
+	<tbody>
+	<tr class="tr">
+	<td colspan="4" class="td">There is no result available for this question</td>
+	</tr></tr>
+	</tbody>
+	</table>';
+}
+echo $msg;
+
+
+?>

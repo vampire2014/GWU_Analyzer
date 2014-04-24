@@ -1,0 +1,37 @@
+<?
+header("Content-type: image/");
+include "connection.php";
+$questionnaire=$_GET['questionnaire'];
+$question=$_GET['question'];
+
+    //Include phpMyGraph5.0.php
+    include_once('phpMyGraph5.0.php');
+    $result = mysql_query("SELECT question_id, questionnaire_id, question_text, ans_type, response_content, COUNT( * ) AS total
+FROM wp_question_dim Q, wp_question_response QR
+WHERE questionnaire_id = $questionnaire
+AND question_id = $question
+AND QR.questionnaire_dim_questionnaire_id = Q.questionnaire_id
+AND QR.question_dim_question_id = Q.question_id
+GROUP BY response_content");
+
+    $dataArray = array();
+		while($rows = mysql_fetch_assoc($result)) {
+			$key = $rows['response_content'];
+			$value = $rows['total'];
+			$dataArray[$key]=$value;
+		}
+		
+    //Set config directives
+    $cfg['title'] = 'Example graph';
+    $cfg['width'] = 500;
+    $cfg['height'] = 250;
+    
+    //Set data
+    $data = array($dataArray);
+    
+    //Create phpMyGraph instance
+    $graph = new phpMyGraph();
+
+    //Parse
+    $graph->parseHorizontalColumnGraph($data, $cfg);
+?>

@@ -1,0 +1,66 @@
+
+<? 
+$questionnaire=$_GET['questionnaire'];
+include "connection.php";
+
+
+$msg = '';
+
+
+// For The Questionnaire information
+$result = mysql_query("SELECT Q.questionnaire_id, Q.title, Q.creator_name, Q.date_created, COUNT( DISTINCT QR.respondee_dim_respondee_id ) total_Response, AVG( R.duration ) AS ave_time
+FROM wp_questionnaire_dim Q, wp_question_response QR, wp_respondee_dim R
+WHERE Q.questionnaire_id = $questionnaire
+AND QR.question_dim_questionnaire_id = Q.questionnaire_id
+AND QR.respondee_dim_respondee_id = R.respondee_id");
+
+
+if(!empty($result)){
+
+	$msg =$msg.'<table class="table">
+	<tbody>
+	<tr class="tr">
+		<td width="80%" colspan="2" class="td"><input class="button-primary" type="submit" name="submit" value="Export Data" onclick="exportCSV('.$questionnaire.')"/></td>
+		<td width="10%" class="td"></td>
+		<td width="10%" class="td"><input class="button-primary" type="submit" name="submit" value="Refresh" /></td>
+	</tr>
+	<tr class="tr">
+	<td colspan="4" class="td">
+	<table>
+	<tr>
+	<th>Title</th>
+	<th>Date Created</th>
+	<th>Created By</th>
+	<th>Number Response</th>
+	<th>&nbsp;</th>
+	</tr>';
+	
+	while($rows = mysql_fetch_assoc($result)) {
+		$completed = $rows['total_Response'];
+		$ave_time = round($rows['ave_time'],2);
+		$ave_time = gmdate("H:i:s", (int)$rows['ave_time']);
+		$msg =$msg.'<tr>';
+		$msg = $msg.'<td>'.$rows['title'].'</td><td>'.$rows['date_created'].'</td>
+		<td>'.$rows['creator_name'].'</td><td>'.$rows['total_Response'].'</td>
+		<td><a href="/wp-content/plugins/QuestionPeachAnalyzer/viewAll.php?questionnaire='.$rows['questionnaire_id'].'">View Result</a></td>';
+		$msg =$msg.'</tr>';
+	}
+
+	$msg = $msg.'</table></td>
+	</tr>
+	<tr class="tr">
+		<td class="td" width="20%">&nbsp; </td>
+		<td class="td" width="30%"><p style="text-align:center; border:2px solid black;"><b>Completed</b> <br>'.  $completed.' </p></td>
+		<td class="td" width="30%"><p style="text-align:center; border:2px solid black;"><b>Average Time</b> <br>'.  $ave_time.' </p></td>
+		<td class="td" width="20%">&nbsp; </td>
+	</tr>
+	
+	</tbody></table>';
+
+	echo $msg;
+
+
+}
+
+
+
